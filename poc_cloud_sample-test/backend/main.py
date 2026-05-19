@@ -98,10 +98,10 @@ def validate_credentials(payload: CredentialsRequest):
                 config=Config(connect_timeout=5, read_timeout=5, retries={"max_attempts": 1}),
             )
             sts.get_caller_identity()
-        except Exception as exc:
+        except Exception:
             return {
                 "valid": False,
-                "message": f"AWS credentials could not be verified ({str(exc)[:200]}). Please check your credentials.",
+                "message": "AWS credentials could not be verified. Please check your credentials and permissions.",
             }
 
     # For GCP, verify service-account credentials by fetching project info via Resource Manager.
@@ -123,10 +123,10 @@ def validate_credentials(payload: CredentialsRequest):
                 cache_discovery=False,
             )
             crm.projects().get(projectId=project_id).execute()
-        except Exception as exc:
+        except Exception:
             return {
                 "valid": False,
-                "message": f"GCP credentials could not be verified ({str(exc)[:200]}). Please check your credentials.",
+                "message": "GCP credentials could not be verified. Please check your credentials and permissions.",
             }
 
     app.state.session = {"provider": provider, "credentials": creds, "mock": False}

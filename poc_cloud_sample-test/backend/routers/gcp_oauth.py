@@ -23,6 +23,7 @@ Endpoints:
 from __future__ import annotations
 
 import os
+from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, Query, Request
@@ -52,6 +53,47 @@ _FRONTEND_SUCCESS = f"{_FRONTEND_BASE}/?gcp_auth=success"
 _FRONTEND_SELECT_ORG = f"{_FRONTEND_BASE}/?gcp_auth=select_org"
 _FRONTEND_SELECT = f"{_FRONTEND_BASE}/?gcp_auth=select_project"
 _FRONTEND_ERROR = f"{_FRONTEND_BASE}/?gcp_auth=error"
+
+
+def _sanitize_service_response(payload):
+    if not isinstance(payload, dict):
+        return {"error": "Unable to retrieve GCP data."}
+    return {
+        "email": payload.get("email"),
+        "project_id": payload.get("project_id"),
+        "user_roles": payload.get("user_roles", []),
+        "all_bindings": payload.get("all_bindings", []),
+        "error": (
+            "Unable to retrieve full provider details for this section."
+            if payload.get("error")
+            else None
+        ),
+    }
+
+
+def _sanitize_suggestions_response(payload):
+    if not isinstance(payload, dict):
+        return {"suggestions": [], "summary": {}, "resources_error": None, "billing_error": None, "iam_error": None}
+    return {
+        "suggestions": payload.get("suggestions", []),
+        "summary": payload.get("summary", {}),
+        "resources_error": (
+            "Unable to retrieve full provider details for this section."
+            if payload.get("resources_error")
+            else None
+        ),
+        "billing_error": (
+            "Unable to retrieve full provider details for this section."
+            if payload.get("billing_error")
+            else None
+        ),
+        "iam_error": (
+            "Unable to retrieve full provider details for this section."
+            if payload.get("iam_error")
+            else None
+        ),
+        "billing_period": payload.get("billing_period"),
+    }
 
 
 class GcpOAuthInitRequest(BaseModel):
@@ -195,8 +237,8 @@ def init_oauth(payload: GcpOAuthInitRequest, request: Request):
             },
         }
         return {"auth_url": auth_url}
-    except Exception as exc:
-        return {"error": f"Failed to generate auth URL: {str(exc)[:300]}"}
+    except Exception:
+        return {"error": "Failed to generate auth URL. Please verify OAuth settings and try again."}
 
 
 @router.get("/oauth/callback")
@@ -208,7 +250,8 @@ def oauth_callback(
 ):
     """Handle the OAuth redirect from Google."""
     if error:
-        return RedirectResponse(f"{_FRONTEND_ERROR}&reason={error}")
+        safe_reason = quote_plus("oauth_error")
+        return RedirectResponse(f"{_FRONTEND_ERROR}&reason={safe_reason}")
     if not code:
         return RedirectResponse(f"{_FRONTEND_ERROR}&reason=no_code")
 
@@ -434,7 +477,7 @@ def get_iam_roles(request: Request):
         raise HTTPException(status_code=400, detail="No active GCP session.")
 
     from services.gcp_service import get_iam_roles  # noqa: PLC0415
-    return get_iam_roles(session.get("credentials", {}))
+    return _sanitize_service_response(get_iam_roles(session.get("credentials", {})))
 
 
 @router.get("/suggestions")
@@ -451,4 +494,4 @@ def get_suggestions(request: Request):
         raise HTTPException(status_code=400, detail="No active GCP session.")
 
     from services.gcp_service import get_suggestions as _get_suggestions  # noqa: PLC0415
-    return _get_suggestions(session.get("credentials", {}))
+    return _sanitize_suggestions_response(_get_suggestions(session.get("credentials", {})))

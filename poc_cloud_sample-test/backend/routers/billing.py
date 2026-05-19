@@ -25,6 +25,36 @@ def _default_dates() -> tuple[date, date]:
     return start, today
 
 
+def _sanitize_billing_result(result: dict):
+    if not isinstance(result, dict):
+        return {
+            "total": 0.0,
+            "currency": "USD",
+            "start_date": None,
+            "end_date": None,
+            "daily_costs": [],
+            "breakdown": [],
+        }
+    return {
+        "total": result.get("total", 0.0),
+        "currency": result.get("currency", "USD"),
+        "start_date": result.get("start_date"),
+        "end_date": result.get("end_date"),
+        "daily_costs": result.get("daily_costs", []),
+        "breakdown": result.get("breakdown", []),
+        "service_daily": result.get("service_daily"),
+        "source": result.get("source"),
+        "estimated": result.get("estimated", False),
+        "note": (
+            "Estimated billing data is shown. Configure cloud billing export for exact costs."
+            if result.get("estimated")
+            else result.get("note")
+        ),
+        "project_id": result.get("project_id"),
+        "resource_type": result.get("resource_type"),
+    }
+
+
 @router.get("/gcp-bq-projects")
 def get_gcp_bq_projects(request: Request):
     """Return the distinct GCP project IDs present in the configured BigQuery billing table."""
@@ -69,9 +99,9 @@ def get_overall_billing(
         if _last_billing_error.get("error") and not is_mock:
             raise HTTPException(
                 status_code=503,
-                detail=f"Unable to retrieve AWS billing data: {_last_billing_error['error']}",
+                detail="Unable to retrieve AWS billing data at the moment. Please retry shortly.",
             )
-        return result
+        return _sanitize_billing_result(result)
     elif provider == "gcp":
         from services.gcp_service import get_overall_billing, _last_billing_error
         _last_billing_error.clear()
@@ -87,10 +117,10 @@ def get_overall_billing(
                     "Enable it in the GCP Console under Billing → Billing export."
                 ),
             )
-        return result
+        return _sanitize_billing_result(result)
     elif provider == "azure":
         from services.azure_service import get_overall_billing
-        return get_overall_billing(credentials, start, end)
+        return _sanitize_billing_result(get_overall_billing(credentials, start, end))
     else:
         raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
 
@@ -116,9 +146,9 @@ def get_billing_by_resource_type(
         if _last_billing_error.get("error") and not is_mock:
             raise HTTPException(
                 status_code=503,
-                detail=f"Unable to retrieve AWS billing data: {_last_billing_error['error']}",
+                detail="Unable to retrieve AWS billing data at the moment. Please retry shortly.",
             )
-        return result
+        return _sanitize_billing_result(result)
     elif provider == "gcp":
         from services.gcp_service import get_billing_by_resource_type, _last_billing_error
         _last_billing_error.clear()
@@ -133,9 +163,9 @@ def get_billing_by_resource_type(
                     "Enable it in the GCP Console under Billing → Billing export."
                 ),
             )
-        return result
+        return _sanitize_billing_result(result)
     elif provider == "azure":
         from services.azure_service import get_billing_by_resource_type
-        return get_billing_by_resource_type(credentials, resource_type, start, end)
+        return _sanitize_billing_result(get_billing_by_resource_type(credentials, resource_type, start, end))
     else:
         raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
