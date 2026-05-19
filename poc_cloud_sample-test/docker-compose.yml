@@ -1,0 +1,25 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    # Copy backend/.env.example to backend/.env and fill in your credentials
+    env_file:
+      - path: ./backend/.env
+        required: false
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request, sys; r=urllib.request.urlopen('http://localhost:8000/'); sys.exit(0 if r.status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped

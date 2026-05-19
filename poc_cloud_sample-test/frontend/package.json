@@ -1,0 +1,22 @@
+{
+  "name": "cloud-management-frontend",
+  "version": "1.0.0",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "primereact": "^10.5.0",
+    "primeicons": "^6.0.1",
+    "primeflex": "^3.3.1",
+    "axios": "^1.6.5",
+    "recharts": "^2.10.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.12"
+  },
+  "scripts": {
+    "dev": "vite --port 3000",
+    "build": "vite build",
+    "preview": "vite preview"
+  }
+}
