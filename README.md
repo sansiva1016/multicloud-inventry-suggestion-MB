@@ -1,0 +1,1 @@
+# multicloud-inventry-suggestion-MB
