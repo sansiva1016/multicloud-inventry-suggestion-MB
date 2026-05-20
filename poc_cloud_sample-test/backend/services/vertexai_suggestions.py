@@ -162,11 +162,12 @@ def generate_vertexai_suggestions(
     billing_end: date,
 ) -> tuple[list[dict[str, Any]], str | None]:
     """Generate additional suggestions from Vertex AI using provider data."""
-    api_key = (os.environ.get("GOOGLE_CLOUD_API_KEY") or "").strip()
-    if not api_key:
-        return [], "GOOGLE_CLOUD_API_KEY is not configured."
     if genai is None or types is None:
         return [], "google-genai is not installed."
+    project = (os.environ.get("GOOGLE_CLOUD_PROJECT") or "").strip()
+    location = (os.environ.get("GOOGLE_CLOUD_LOCATION") or "us-central1").strip()
+    if not project:
+        return [], "GOOGLE_CLOUD_PROJECT is not configured for Vertex AI."
 
     payload = {
         "provider": provider.upper(),
@@ -213,7 +214,8 @@ def generate_vertexai_suggestions(
     try:
         client = genai.Client(
             vertexai=True,
-            api_key=api_key,
+            project=project,
+            location=location,
         )
         contents = [
             types.Content(
